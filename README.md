@@ -2,6 +2,10 @@
 
 Projeto embarcado com RP2040 que cria um servidor web futurista para monitorar sensores de entrada, como botões físicos e joystick analógico, utilizando comunicação Wi-Fi via CYW43.
 
+## 🖼️ Screenshot
+
+![Screenshot da Interface Web](screenshot.png)
+
 ## ✨ Funcionalidades
 
 - Conexão à rede Wi-Fi com autenticação WPA2.
