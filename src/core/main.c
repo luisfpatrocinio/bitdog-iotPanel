@@ -49,6 +49,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
     snprintf(body, sizeof(body),
              "<!DOCTYPE html>"
              "<html><head><meta charset='utf-8'><meta http-equiv='refresh' content='1'>"
+             "<title>IoT Panel</title>"
              "<style>"
              "body { background-color: #0f0f0f; color: #00ffc3; font-family: monospace; text-align: center; padding: 40px; }"
              ".panel { background: #1a1a1a; border: 1px solid #00ffc3; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #00ffc3; display: inline-block; }"
@@ -194,12 +195,23 @@ int main()
     {
         cyw43_arch_poll();
         clearDisplay();
-        drawText(0, 0, "Hello from Patrocinio!");
-        drawText(0, 10, "IP Address: ");
-        char ip_str[16];
-        snprintf(ip_str, sizeof(ip_str), "%s", ipaddr_ntoa(&netif_default->ip_addr));
-        drawText(0, 20, ip_str);
+        drawTextCentered("BitDogLab", 0);
+        drawTextCentered("IoT Panel", 8);
+        drawTextCentered("IP Address:", 20);
 
+        // Exibir IP caso já possua:
+        if (netif_default && netif_default->ip_addr.addr != 0)
+        {
+            char ip_str[16];
+            snprintf(ip_str, sizeof(ip_str), "%s", ipaddr_ntoa(&netif_default->ip_addr));
+            drawTextCentered(ip_str, 28);
+        }
+        else
+        {
+            drawTextCentered("Connecting...", 28);
+        }
+
+        drawWave(SCREEN_HEIGHT - 12, 2, 6);
         showDisplay();
     }
 }
