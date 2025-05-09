@@ -19,10 +19,52 @@
 #include "buttons.h"
 #include "pico/unique_id.h"
 
+// Math
+#include <math.h>
+
 #define WIFI_SSID "patro"
 #define WIFI_PASSWORD "cafecombiscoito"
 
 #define LED_PIN CYW43_WL_GPIO_LED_PIN
+
+float calculateAngle(int x_raw, int y_raw)
+{
+    float x = x_raw;
+    float y = y_raw;
+    float magnitude = sqrt(x * x + y * y); // Calcula o comprimento do vetor
+    if (magnitude < 5)
+    {
+        return -1; // Retorna -1 se o comprimento do vetor for menor que 5
+    }
+    float angle = 90 + atan2(y, x) * 180 / M_PI; // Converte de radianos para graus
+    if (angle < 0)
+    {
+        angle += 360; // Ajusta o ângulo para o intervalo [0, 360)
+    }
+    return angle;
+}
+
+const char *directionToString(float angle)
+{
+    if (angle == -1)
+        return "Indefinido";
+    else if (angle >= 337.5 || angle < 22.5)
+        return "Norte";
+    else if (angle >= 22.5 && angle < 67.5)
+        return "Nordeste";
+    else if (angle >= 67.5 && angle < 112.5)
+        return "Leste";
+    else if (angle >= 112.5 && angle < 157.5)
+        return "Sudeste";
+    else if (angle >= 157.5 && angle < 202.5)
+        return "Sul";
+    else if (angle >= 202.5 && angle < 247.5)
+        return "Sudoeste";
+    else if (angle >= 247.5 && angle < 292.5)
+        return "Oeste";
+    else
+        return "Noroeste";
+}
 
 static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
@@ -41,11 +83,12 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 
     // Criação da resposta HTML:
 
+    // Obter ID único da placa.
     char id_string[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
     pico_get_unique_board_id_string(id_string, sizeof(id_string));
 
     // Body
-    char body[1024];
+    char body[2048];
     snprintf(body, sizeof(body),
              "<!DOCTYPE html>"
              "<html><head><meta charset='utf-8'><meta http-equiv='refresh' content='1'>"
@@ -63,7 +106,8 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              "<p><strong>Botão 2:</strong> %s</p>"
              "<p><strong>Analógico X:</strong> %d</p>"
              "<p><strong>Analógico Y:</strong> %d</p>"
-             "<p><strong>ID da Placa:</strong> %s</p>"
+             "<p><strong>Direção:</strong> %s</p>"
+             "<p>ID da Placa: %s</p>"
              "<p style='margin-top:20px; font-size: 0.9em;'>"
              "<a href='https://github.com/luisfpatrocinio' style='color:#00ffc3; text-decoration:none;'>Desenvolvido por Luis F. Patrocinio</a>"
              "</p>"
@@ -73,6 +117,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
              gpio_get(BTB) ? "Solto" : "Pressionado",
              readAnalogX(),
              readAnalogY(),
+             directionToString(calculateAngle(readAnalogX(), readAnalogY())),
              id_string);
 
     // Tamanho do corpo
@@ -80,7 +125,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 
     // Cabeçalho + Corpo
     // Cabeçalho + corpo
-    char html[1200];
+    char html[2048];
     snprintf(html, sizeof(html),
              "HTTP/1.1 200 OK\r\n"
              "Content-Type: text/html; charset=utf-8\r\n"
@@ -195,23 +240,42 @@ int main()
     {
         cyw43_arch_poll();
         clearDisplay();
-        drawTextCentered("BitDogLab", 0);
-        drawTextCentered("IoT Panel", 8);
-        drawTextCentered("IP Address:", 20);
+        drawTextCentered("BitDogLab Panel", 0);
+        drawTextCentered("IP Address:", 8);
 
         // Exibir IP caso já possua:
         if (netif_default && netif_default->ip_addr.addr != 0)
         {
             char ip_str[16];
             snprintf(ip_str, sizeof(ip_str), "%s", ipaddr_ntoa(&netif_default->ip_addr));
-            drawTextCentered(ip_str, 28);
+            drawTextCentered(ip_str, 16);
         }
         else
         {
-            drawTextCentered("Connecting...", 28);
+            drawTextCentered("Connecting...", 16);
         }
 
-        drawWave(SCREEN_HEIGHT - 12, 2, 6);
+        // Desenhar rosa dos ventos
+        int _roseX = SCREEN_WIDTH / 2 - 4;
+        int _roseY = SCREEN_HEIGHT / 2 + 4;
+        int _spac = 10;
+        drawText(_roseX, _roseY - _spac, "N");
+        drawText(_roseX, _roseY + _spac, "S");
+        drawText(_roseX - _spac, _roseY, "O");
+        drawText(_roseX + _spac, _roseY, "L");
+        float _angle = calculateAngle(readAnalogX(), readAnalogY());
+        if (_angle != -1)
+        {
+            int _x = _roseX + 4 + (_spac * cos((_angle - 90) * M_PI / 180));
+            int _y = (_roseY + 4) + (_spac * sin((_angle - 90) * M_PI / 180));
+            drawPixel(_x, _y);
+        }
+
+        // Desenhar direção
+        float angle = calculateAngle(readAnalogX(), readAnalogY());
+        const char *direction = directionToString(angle);
+        drawTextCentered(direction, SCREEN_HEIGHT - 8);
+
         showDisplay();
     }
 }
